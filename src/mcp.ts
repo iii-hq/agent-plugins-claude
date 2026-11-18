@@ -11,14 +11,11 @@
  */
 
 import type { AgentProfile, AgentRow, Skill, SkillRow } from './directory.js';
+import { help } from './troubleshoot.js';
 
 export const DEFAULT_MCP_URL = 'http://127.0.0.1:3111/mcp';
 const PROTOCOL = '2025-06-18';
 const TIMEOUT_MS = 15_000;
-const SETUP =
-  'The iii plugin needs the mcp-server worker running on your iii engine, behind rbac-proxy ' +
-  '(https://github.com/iii-hq/workers/tree/main/mcp-server). If it runs elsewhere, set the ' +
-  "plugin's mcp_url option (or III_PLUGIN_MCP_URL, or --url).";
 
 export type McpUrlSource = '--url' | 'III_PLUGIN_MCP_URL' | 'plugin option mcp_url' | 'default';
 
@@ -27,7 +24,7 @@ export function normalizeMcpUrl(raw: string): string {
   let value = raw.trim();
   if (/^wss?:\/\//i.test(value)) {
     throw new Error(
-      `${value} is an engine WebSocket address; the iii plugin talks to mcp-server over HTTP (for example ${DEFAULT_MCP_URL})`,
+      `${value} is an engine WebSocket address; the iii plugin talks to mcp-server over HTTP (for example ${DEFAULT_MCP_URL}). ${help('websocket')}`,
     );
   }
   if (/^\d+$/.test(value)) value = `127.0.0.1:${value}`;
@@ -121,14 +118,26 @@ export class McpClient {
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
     } catch (err) {
-      throw new Error(`mcp-server is not reachable at ${this.url} (${describe(err)}). ${SETUP}`);
+      throw new Error(
+        `mcp-server is not reachable at ${this.url} (${describe(err)}). ${help('unreachable')}`,
+      );
     }
     if (res.status === 503) {
       const why = (await res.text().catch(() => '')).slice(0, 300);
-      throw new Error(`mcp-server at ${this.url} refused a new session (HTTP 503): ${why}`);
+      throw new Error(
+        `mcp-server at ${this.url} refused a new session (HTTP 503): ${why}. ${help('full')}`,
+      );
+    }
+    if (res.status === 403) {
+      const why = (await res.text().catch(() => '')).slice(0, 300);
+      throw new Error(
+        `mcp-server at ${this.url} refused the request (HTTP 403): ${why}. ${help('origin')}`,
+      );
     }
     if (!res.ok) {
-      throw new Error(`no mcp-server answers at ${this.url} (HTTP ${res.status}). ${SETUP}`);
+      throw new Error(
+        `no mcp-server answers at ${this.url} (HTTP ${res.status}). ${help('notServing')}`,
+      );
     }
     return res;
   }
@@ -151,7 +160,7 @@ export class McpClient {
       await this.request('initialize', {
         protocolVersion: PROTOCOL,
         capabilities: {},
-        clientInfo: { name: 'iii-plugin', version: '0.2.0' },
+        clientInfo: { name: 'iii-plugin', version: '0.3.0' },
       });
       await this.post({ jsonrpc: '2.0', method: 'notifications/initialized' });
     })().catch((err) => {
@@ -166,7 +175,11 @@ export class McpClient {
     await this.open();
     const result = await this.request('tools/call', { name, arguments: args });
     const text = (result?.content ?? []).map((c) => c.text ?? '').join('');
-    if (result?.isError) throw new Error(`${name}: ${text}`);
+    if (result?.isError) {
+      // rbac-proxy's refusal reaches the client as a FORBIDDEN tool error.
+      const fix = /\bFORBIDDEN\b/.test(text) ? ` ${help('forbidden')}` : '';
+      throw new Error(`${name}: ${text}${fix}`);
+    }
     return text;
   }
 
