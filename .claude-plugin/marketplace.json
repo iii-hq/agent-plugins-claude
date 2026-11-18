@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "iii",
+  "owner": {
+    "name": "iii-hq",
+    "url": "https://github.com/iii-hq"
+  },
+  "metadata": {
+    "description": "Claude Code plugins for the iii engine."
+  },
+  "plugins": [
+    {
+      "name": "iii",
+      "source": "./plugins/iii",
+      "description": "Agent profiles, skills and the engine itself from a running iii engine, through its mcp-server worker. Works inside the claude-code worker and in a standalone claude.",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/iii-hq/agent-plugins-claude",
+      "repository": "https://github.com/iii-hq/agent-plugins-claude"
+    }
+  ]
+}
