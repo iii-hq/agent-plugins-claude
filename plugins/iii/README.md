@@ -45,6 +45,11 @@ plugin) is where mcp-server answers: the http worker's address plus its
 Ask the agent for `iii_status`: it reports the server, its `access_control`
 (`rbac-proxy` and the rules in force) and the session's `active_profile`.
 
+## When something fails
+
+Every error from the plugin ends with a one-line fix and a link to the
+[troubleshooting guide](https://github.com/iii-hq/agent-plugins-claude#troubleshooting).
+
 ## Commands
 
 Claude Code namespaces plugin commands as `/<plugin>:<command>`, so they all

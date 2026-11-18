@@ -7,6 +7,7 @@
  */
 
 import type { AgentProfile } from './directory.js';
+import { hasHelp, help } from './troubleshoot.js';
 
 export const DEFAULT_PROFILE = 'default-mcp';
 /** Claude Code keeps hook output under 10,000 characters in context. */
@@ -58,8 +59,11 @@ export function agentFile(profile: AgentProfile): string {
 /** The hook's stdout, for the profile mcp-server returned or the error it hit. */
 export function sessionStartOutput(result: { profile: AgentProfile } | { error: string }): string {
   if ('error' in result) {
+    // An error from the MCP client names its own fix; any other failure to
+    // load the profile gets the profile fix.
+    const fix = hasHelp(result.error) ? '' : ` ${help('profile')}`;
     return output(
-      `The iii plugin could not load the \`${DEFAULT_PROFILE}\` agent profile at session start: ${result.error}`,
+      `The iii plugin could not load the \`${DEFAULT_PROFILE}\` agent profile at session start: ${result.error}${fix} When the user asks for anything that needs the iii tools, tell the user this, with the fix and its link, instead of working around it.`,
     );
   }
   const { profile } = result;
