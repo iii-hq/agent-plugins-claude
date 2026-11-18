@@ -178,7 +178,8 @@ describe('McpClient', () => {
     expect(message).toContain('mcp-server is not reachable at http://127.0.0.1:3111/mcp');
     expect(message).toContain('ECONNREFUSED');
     expect(message).toContain('mcp_url');
-    expect(message).toContain('rbac-proxy');
+    // The fix ends with its troubleshooting entry.
+    expect(message).toContain('agent-plugins-claude#mcp-server-is-not-reachable');
   });
 
   it('says mcp-server is full, not missing, when it refuses a new session', async () => {

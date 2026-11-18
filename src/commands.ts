@@ -58,11 +58,15 @@ Where a profile or skill says \`agent_call\` or \`harness::observe\`, use
 
 /** And what to say when mcp-server does not answer. */
 export const UNREACHABLE_NOTE = `
-If the \`iii\` MCP tools are missing or cannot connect, stop and say so: the
-iii plugin reaches the engine through the \`mcp-server\` worker, and none
-answers at the plugin's \`mcp_url\` option (default
-\`http://127.0.0.1:3111/mcp\`). Run \`mcp-server\` on the engine, behind
-rbac-proxy (see its README), or set \`mcp_url\` to where it runs.
+If the \`iii\` MCP tools are missing, cannot connect, or a call fails, stop and
+tell the user what failed, quoting the error. (The iii plugin reaches the
+engine through the \`mcp-server\` worker at its \`mcp_url\` option, default
+\`http://127.0.0.1:3111/mcp\`.) An error from the iii plugin
+ends with its fix and a link: pass both on. Otherwise point to the matching
+entry in the troubleshooting guide,
+https://github.com/iii-hq/agent-plugins-claude#troubleshooting (for example
+"The iii tools are missing in Claude Code" or "A call is forbidden"). Do not
+work around it with the \`iii\` CLI.
 `;
 
 export function profileCommand(row: AgentRow): PluginFile {

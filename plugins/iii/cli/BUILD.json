@@ -7,8 +7,9 @@
     "src/directory.ts",
     "src/main.ts",
     "src/mcp.ts",
-    "src/session.ts"
+    "src/session.ts",
+    "src/troubleshoot.ts"
   ],
-  "inputs_sha256": "69ebb92bdcc1f26d87cd27b5e37995284dde3f5fd6cee70aabc63408a17fc26c",
-  "output_sha256": "e9acc1ded76a375a3e3161c29f9437c13cb6bc357f9ef32e6bfaad2c255a7353"
+  "inputs_sha256": "fb25bcc7954b9d98220316b560ba7bac9fddfd8083a5c85ef02868bd43785776",
+  "output_sha256": "281d0beee8ed6095862b8830e7ebdfead7e590e9fee2312315f589dfe43f5267"
 }
