@@ -58,6 +58,10 @@ iii call compose::add --json '{"workers": ["rbac-proxy", "secrets", {"worker": "
   to serve an endpoint other machines can reach. `config_override` binds it to
   `127.0.0.1` and keeps the rest of its settings; compose applies it every time http
   starts. If the project already has http, this updates it and restarts it.
+- If your `worker-compose.yaml` already gives http a `config_override` (a custom port, say),
+  this command replaces it with just the host. In that case, add `host: 127.0.0.1` to
+  your existing `config_override` in `worker-compose.yaml` by hand instead, and add
+  `rbac-proxy` and `secrets` on their own.
 - `secrets` backs the `iii_secret_store` tool.
 
 ### 2. Add an auth function
