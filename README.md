@@ -48,42 +48,31 @@ starts behind `rbac-proxy`, which decides what agents may call. One-time setup, 
 iii project directory (commands assume the `default` namespace and the engine on its
 default port, `ws://127.0.0.1:49134`).
 
-### 1. Add rbac-proxy and the http worker
+### 1. Add rbac-proxy and the http worker, on this machine only
 
 ```sh
-iii call compose::add --json '{"workers": ["rbac-proxy", "http", "secrets"]}'
+iii call compose::add --json '{"workers": ["rbac-proxy", "secrets", {"worker": "http", "config_override": {"host": "127.0.0.1"}}]}'
 ```
 
-`secrets` backs the `iii_secret_store` tool.
+- The http worker listens on every interface (`0.0.0.0`) by default, and mcp-server refuses
+  to serve an endpoint other machines can reach. `config_override` binds it to
+  `127.0.0.1` and keeps the rest of its settings; compose applies it every time http
+  starts. If the project already has http, this updates it and restarts it.
+- `secrets` backs the `iii_secret_store` tool.
 
-### 2. Keep the http worker on this machine
-
-The http worker listens on every interface (`0.0.0.0`) by default, and mcp-server refuses
-to serve an endpoint other machines can reach. Bind it to loopback: read its configuration,
-then set the same value back with `"host": "127.0.0.1"`:
-
-```sh
-iii call configuration::get --json '{"id": "default-http"}'
-iii call configuration::set --json '{"id": "default-http", "value": { ...the value above..., "host": "127.0.0.1" }}'
-```
-
-### 3. Add an auth function
+### 2. Add an auth function
 
 rbac-proxy authenticates every connection by calling a function you provide; without one
-it refuses everything. This one accepts a shared token. Create a long random token:
+it refuses everything. This one accepts a shared token. Run this block in your project
+directory: it creates the token in `.env` and the worker in `workers/mcp-auth`, and adds it
+to the project.
 
 ```sh
-echo "MCP_TOKEN=$(openssl rand -hex 32)" >> .env
-echo "III_TOKEN=$(grep '^MCP_TOKEN=' .env | cut -d= -f2)" >> .env
-```
+token=$(openssl rand -hex 32)
+printf 'MCP_TOKEN=%s\nIII_TOKEN=%s\n' "$token" "$token" >> .env
 
-(`MCP_TOKEN` is what the auth function expects; `III_TOKEN` is what mcp-server sends. They
-are the same value.)
-
-Save this as `workers/mcp-auth/index.mjs`, then run `npm init -y && npm i iii-sdk` in
-`workers/mcp-auth`:
-
-```js
+mkdir -p workers/mcp-auth
+cat > workers/mcp-auth/index.mjs <<'EOF'
 import { timingSafeEqual } from 'node:crypto'
 import { registerWorker } from 'iii-sdk'
 
@@ -107,15 +96,16 @@ iii.registerFunction(
   },
   { observable: false }, // it sees tokens: nothing may observe it
 )
-```
+EOF
+(cd workers/mcp-auth && npm init -y >/dev/null && npm i iii-sdk)
 
-Add it to the project:
-
-```sh
 iii call compose::add --json '{"workers": [{"worker": "path://./workers/mcp-auth", "env_file": ["./.env"], "scripts": {"run": "node index.mjs"}}]}'
 ```
 
-### 4. Configure rbac-proxy
+`MCP_TOKEN` is what the auth function expects; `III_TOKEN` is what mcp-server sends. They
+are the same value.
+
+### 3. Configure rbac-proxy
 
 rbac-proxy's settings live in the configuration worker, under `default-rbac-proxy`:
 
@@ -135,14 +125,14 @@ iii call configuration::set --json '{
 }'
 ```
 
-- `port` is where mcp-server connects (step 6); `engine_url` is your engine.
+- `port` is where mcp-server connects (step 5); `engine_url` is your engine.
 - `expose_endpoints`: which engine endpoints rbac-proxy serves. It serves none until you
   list them. `/` is required; `/otel` carries mcp-server's logs and traces; `/ws/channels/*`
   is for functions that stream.
 - `expose_functions`: what agents may call. `match("*")` is everything; narrow it to limit
   agents, for example `["match(\"orders::*\")", "match(\"secrets::set\")"]`.
 
-### 5. Restart rbac-proxy
+### 4. Restart rbac-proxy
 
 rbac-proxy reads the new settings live, but rule changes only apply to new connections.
 Restart it so every connection uses them:
@@ -157,7 +147,7 @@ iii call rbac-proxy::status
 Do the same after any later change to its settings: `configuration::set`, then
 `compose::restart container=rbac-proxy` and `compose::restart container=mcp-server`.
 
-### 6. Add mcp-server
+### 5. Add mcp-server
 
 Point it at rbac-proxy's port (not the engine) and give it the token:
 
@@ -169,14 +159,14 @@ It serves MCP at the http worker's address plus `/mcp`: `http://127.0.0.1:3111/m
 default (`iii call http::status` shows the address). If yours differs, install the plugin
 with `--config mcp_url=...` (see Install).
 
-### 7. Check it
+### 6. Check it
 
 Start `claude` and run `/iii:profile`: it shows the active profile (`default-mcp`) and the
 profiles on your engine. `/mcp` lists the `iii` server as connected.
 
 If mcp-server does not start, its log says why (`iii call compose::status` shows its state):
-usually rbac-proxy is not configured yet (steps 3 to 5) or the http worker is not on
-`127.0.0.1` (step 2). Full reference:
+usually rbac-proxy is not configured yet (steps 2 to 4) or the http worker is not on
+`127.0.0.1` (step 1). Full reference:
 [mcp-server](https://github.com/iii-hq/workers/tree/main/mcp-server) and
 [rbac-proxy](https://github.com/iii-hq/workers/tree/main/rbac-proxy).
 
