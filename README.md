@@ -7,41 +7,7 @@ session on the engine's `default-mcp` agent profile, and gives you `/iii:profile
 the engine's [`mcp-server`](https://github.com/iii-hq/workers/tree/main/mcp-server) worker,
 so rbac-proxy's rules apply. Details: [plugins/iii/README.md](plugins/iii/README.md).
 
-## Install
-
-In Claude Code:
-
-```
-/plugin marketplace add iii-hq/agent-plugins-claude
-/plugin install iii@iii
-```
-
-From a shell:
-
-```sh
-claude plugin marketplace add iii-hq/agent-plugins-claude
-claude plugin install iii@iii
-```
-
-When mcp-server is not at the default `http://127.0.0.1:3111/mcp`, pass its address:
-
-```sh
-claude plugin install iii@iii --config mcp_url=http://127.0.0.1:3211/mcp
-```
-
-The plugin needs Node 22+ for its SessionStart hooks, and the engine's `mcp-server` worker
-behind rbac-proxy: set that up next. The `claude-code` worker already carries this plugin;
-you only install it for a standalone `claude`.
-
-Update or remove it:
-
-```sh
-claude plugin marketplace update iii
-claude plugin update iii@iii
-claude plugin uninstall iii@iii
-```
-
-## Set up iii to serve it
+## 1. Set up iii to serve it
 
 The plugin talks to the engine through the `mcp-server` worker, and mcp-server only
 starts behind `rbac-proxy`, which decides what agents may call. One-time setup, in your
@@ -161,9 +127,43 @@ iii call compose::add --json '{"workers": [{"worker": "mcp-server", "env_file": 
 
 It serves MCP at the http worker's address plus `/mcp`: `http://127.0.0.1:3111/mcp` by
 default (`iii call http::status` shows the address). If yours differs, install the plugin
-with `--config mcp_url=...` (see Install).
+with `--config mcp_url=...` (see step 2).
 
-### 6. Check it
+## 2. Install the plugin
+
+In Claude Code:
+
+```
+/plugin marketplace add iii-hq/agent-plugins-claude
+/plugin install iii@iii
+```
+
+From a shell:
+
+```sh
+claude plugin marketplace add iii-hq/agent-plugins-claude
+claude plugin install iii@iii
+```
+
+When mcp-server is not at the default `http://127.0.0.1:3111/mcp`, pass its address:
+
+```sh
+claude plugin install iii@iii --config mcp_url=http://127.0.0.1:3211/mcp
+```
+
+The plugin needs Node 22+ for its SessionStart hooks, and the engine's `mcp-server` worker
+behind rbac-proxy (step 1). The `claude-code` worker already carries this plugin; you only
+install it for a standalone `claude`.
+
+Update or remove it:
+
+```sh
+claude plugin marketplace update iii
+claude plugin update iii@iii
+claude plugin uninstall iii@iii
+```
+
+## 3. Check it
 
 Start `claude` and run `/iii:profile`: it shows the active profile (`default-mcp`) and the
 profiles on your engine. `/mcp` lists the `iii` server as connected.
