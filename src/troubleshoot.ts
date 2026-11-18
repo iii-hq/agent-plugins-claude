@@ -30,7 +30,7 @@ export const TROUBLESHOOTING = {
   },
   forbidden: {
     anchor: 'a-call-is-forbidden',
-    fix: "rbac-proxy does not let agents call this function: add it to rbac-proxy's expose_functions (or take it out of forbidden_functions), then restart rbac-proxy.",
+    fix: "rbac-proxy does not let agents call this function. If agents should call it, add it to rbac-proxy's expose_functions and take it out of forbidden_functions, unless it is forbidden on purpose (like secrets::resolve). Then restart rbac-proxy, then mcp-server.",
   },
   toolsMissing: {
     anchor: 'the-iii-tools-are-missing-in-claude-code',

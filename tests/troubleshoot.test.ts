@@ -72,6 +72,15 @@ describe('troubleshooting links', () => {
     }
   });
 
+  it('the forbidden fix is conditional, keeps intentional refusals, and restarts both', () => {
+    const fix = TROUBLESHOOTING.forbidden.fix;
+    expect(fix).toMatch(/If agents should call it/);
+    // secrets::resolve is forbidden on purpose: never tell anyone to lift it.
+    expect(fix).toContain('secrets::resolve');
+    // Rules apply to new connections: mcp-server must reconnect too.
+    expect(fix).toMatch(/restart rbac-proxy, then mcp-server/i);
+  });
+
   it('an engine WebSocket address links the address fix', () => {
     expect(() => normalizeMcpUrl('ws://127.0.0.1:49134')).toThrow(link('websocket'));
   });
