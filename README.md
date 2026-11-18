@@ -9,6 +9,10 @@ so rbac-proxy's rules apply. Details: [plugins/iii/README.md](plugins/iii/README
 
 ## Set up iii to serve it
 
+**Skip this section** if your project was created by the iii `install.sh` script or from
+the harness template: it already runs mcp-server behind rbac-proxy at
+`http://127.0.0.1:3111/mcp`. Go straight to [Install the plugin](#install-the-plugin).
+
 The plugin talks to the engine through the `mcp-server` worker, and mcp-server only
 starts behind `rbac-proxy`, which decides what agents may call. One-time setup, in your
 iii project directory (commands assume the `default` namespace and the engine on its
