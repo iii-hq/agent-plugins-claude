@@ -50,6 +50,8 @@ iii call configuration::set --json '{
     "rbac": {
       "loopback_auth": {
         "worker_names": ["mcp-server"],
+        "allow_function_registration": true,
+        "function_registration_prefix": "mcp",
         "forbidden_functions": ["secrets::resolve"]
       },
       "expose_endpoints": ["match(\"/\")", "match(\"/ws/channels/*\")", "match(\"/otel\")"],
@@ -61,8 +63,10 @@ iii call configuration::set --json '{
 
 - `loopback_auth` admits connections from this machine only, with no auth function or
   token to set up: every local process can already reach the engine port directly. It
-  lets mcp-server keep its own name, and keeps `secrets::resolve` away from agents (it
-  would let them read every secret). For an engine others reach over the network, see
+  lets mcp-server keep its own name and register its functions under the prefix `mcp`
+  (registration needs a prefix, so no local process can take an id another worker holds),
+  and keeps `secrets::resolve` away from agents (it would let them read every secret). It
+  refuses browser requests (`Origin`) and forwarded ones by default. For an engine others reach over the network, see
   [Remote or shared engines](#remote-or-shared-engines).
 - `port` is where mcp-server connects (step 4); `engine_url` is your engine.
 - `expose_endpoints`: which engine endpoints rbac-proxy serves. It serves none until you
