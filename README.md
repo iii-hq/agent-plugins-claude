@@ -20,10 +20,10 @@ starts behind `rbac-proxy`, which decides what agents may call. One-time setup, 
 iii project directory (commands assume the `default` namespace and the engine on its
 default port, `ws://127.0.0.1:49134`).
 
-### 1. Add rbac-proxy and the http worker, on this machine only
+### 1. Add rbac-proxy, iii-directory and the http worker, on this machine only
 
 ```sh
-iii call compose::add --json '{"workers": ["rbac-proxy", "secrets", {"worker": "http", "config_override": {"host": "127.0.0.1"}}]}'
+iii call compose::add --json '{"workers": ["rbac-proxy", "iii-directory", "secrets", {"worker": "http", "config_override": {"host": "127.0.0.1"}}]}'
 ```
 
 - The http worker listens on every interface (`0.0.0.0`) by default, and mcp-server refuses
@@ -33,7 +33,10 @@ iii call compose::add --json '{"workers": ["rbac-proxy", "secrets", {"worker": "
 - If your `worker-compose.yaml` already gives http a `config_override` (a custom port, say),
   this command replaces it with just the host. In that case, add `host: 127.0.0.1` to
   your existing `config_override` in `worker-compose.yaml` by hand instead, and add
-  `rbac-proxy` and `secrets` on their own.
+  `rbac-proxy`, `iii-directory` and `secrets` on their own.
+- `iii-directory` serves the default-mcp agent profile and the skills the plugin loads
+  (`iii_list_agents`, `iii_get_skill` and the rest call it). Without it the plugin's
+  agent and skills are empty. If the project already has it, this changes nothing.
 - `secrets` backs the `iii_secret_store` tool.
 
 ### 2. Configure rbac-proxy
