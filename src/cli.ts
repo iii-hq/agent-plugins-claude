@@ -27,6 +27,7 @@
  * `mcp_url` option, then http://127.0.0.1:3111/mcp.
  */
 
+import { approveCallDecision } from './mode.js';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -122,6 +123,8 @@ async function exportNative(dir: McpDirectory, argv: string[], io: CliIo): Promi
 export type CliIo = {
   env: NodeJS.ProcessEnv;
   fetchFn: typeof fetch;
+  /** The hook input, read only by `approve-call`. */
+  stdin?: () => Promise<string>;
   stdout: (text: string) => void;
   stderr: (text: string) => void;
 };
@@ -135,6 +138,20 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
   const command = argv[0] && !argv[0].startsWith('-') ? argv[0] : 'status';
   let dir: McpDirectory | null = null;
   try {
+    if (command === 'approve-call') {
+      // The iii_call PreToolUse hook: allow a read-only directory call, and
+      // say nothing otherwise. Never fails, never contacts mcp-server.
+      const raw = await (io.stdin?.() ?? Promise.resolve('')).catch(() => '');
+      let input: unknown = null;
+      try {
+        input = JSON.parse(raw);
+      } catch {
+        input = null;
+      }
+      const decision = approveCallDecision(input);
+      if (decision) io.stdout(`${JSON.stringify(decision)}\n`);
+      return 0;
+    }
     if (command === 'session-start') {
       // Never fail the hook: a session starts either way, told why. A bad
       // address is one more reason, reported the same way.
@@ -159,7 +176,9 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
         `${JSON.stringify({ mcp_server: mcp, ...status, agents: agents.length }, null, 2)}\n`,
       );
     } else {
-      io.stderr(`unknown command: ${command} (expected sync, export, status or session-start)\n`);
+      io.stderr(
+        `unknown command: ${command} (expected sync, export, status, session-start or approve-call)\n`,
+      );
       return 2;
     }
     return 0;

@@ -34,6 +34,10 @@ function fakeFetch(tools: Record<string, (args: Record<string, unknown>) => stri
   }) as typeof fetch;
 }
 
+/** iii_call answering directory::agents::list with `json`, as mcp-server would. */
+const agentsList = (json: string) => (a: Record<string, unknown>) =>
+  a.function_id === 'directory::agents::list' ? `{"agents":${json}}` : 'null';
+
 function io(env: NodeJS.ProcessEnv = {}, fetchFn?: typeof fetch) {
   const out: string[] = [];
   const err: string[] = [];
@@ -59,11 +63,52 @@ async function pluginDir(): Promise<string> {
 const hookContext = (out: string[]) =>
   JSON.parse(out.join('')).hookSpecificOutput.additionalContext as string;
 
+describe('approve-call', () => {
+  const hookInput = (function_id: string) =>
+    JSON.stringify({
+      hook_event_name: 'PreToolUse',
+      tool_name: 'mcp__plugin_iii_iii__iii_call',
+      tool_input: { function_id, payload: {} },
+    });
+  const offline = (async () => {
+    throw new Error('approve-call must not contact mcp-server');
+  }) as unknown as typeof fetch;
+
+  it('allows the read-only directory calls without contacting mcp-server', async () => {
+    for (const fn of [
+      'directory::agents::list',
+      'directory::agents::get',
+      'directory::skills::list',
+      'directory::skills::get',
+    ]) {
+      const t = io({}, offline);
+      expect(await runCli(['approve-call'], { ...t.io, stdin: async () => hookInput(fn) })).toBe(0);
+      expect(JSON.parse(t.out.join('')).hookSpecificOutput.permissionDecision, fn).toBe('allow');
+    }
+  });
+
+  it('says nothing for any other call, so the permission mode decides', async () => {
+    for (const input of [
+      hookInput('secrets::set'),
+      hookInput('directory::skills::update'),
+      hookInput('directory::skills::get '),
+      hookInput('Directory::skills::get'),
+      '{"tool_input":{}}',
+      'not json',
+      '',
+    ]) {
+      const t = io({}, offline);
+      expect(await runCli(['approve-call'], { ...t.io, stdin: async () => input })).toBe(0);
+      expect(t.out.join(''), input).toBe('');
+    }
+  });
+});
+
 describe('runCli', () => {
   it('sync builds the iii agent from default-mcp', async () => {
     const dir = await pluginDir();
     const fetchFn = fakeFetch({
-      iii_list_agents: () => JSON.stringify([{ id: 'writer' }]),
+      iii_call: agentsList(JSON.stringify([{ id: 'writer' }])),
       iii_get_agent: (a) =>
         JSON.stringify({ id: a.id, system_prompt: `${a.id} profile text, with iii_call.` }),
     });
@@ -82,7 +127,7 @@ describe('runCli', () => {
     const other = join(dir, 'other.md');
     await link(join(dir, 'agents', 'iii.md'), other);
     const fetchFn = fakeFetch({
-      iii_list_agents: () => JSON.stringify([]),
+      iii_call: agentsList(JSON.stringify([])),
       iii_get_agent: (a) => JSON.stringify({ id: a.id, system_prompt: 'new prompt' }),
     });
     expect(await runCli(['sync', '--plugin-dir', dir, '--quiet'], io({}, fetchFn).io)).toBe(0);
@@ -95,7 +140,7 @@ describe('runCli', () => {
     const dir = await pluginDir();
     const before = await readFile(join(dir, 'agents', 'iii.md'), 'utf8');
     const fetchFn = fakeFetch({
-      iii_list_agents: () => JSON.stringify([{ id: 'writer' }]),
+      iii_call: agentsList(JSON.stringify([{ id: 'writer' }])),
       iii_get_agent: () => {
         throw new Error('directory::agents::get: no such agent default-mcp');
       },
@@ -121,7 +166,7 @@ describe('runCli', () => {
   it('export refuses profiles whose files collide, before writing any', async () => {
     const target = await mkdtemp(join(tmpdir(), 'iii-export-test-'));
     const fetchFn = fakeFetch({
-      iii_list_agents: () => JSON.stringify([{ id: 'Deep Work' }, { id: 'deep-work' }]),
+      iii_call: agentsList(JSON.stringify([{ id: 'Deep Work' }, { id: 'deep-work' }])),
       iii_get_agent: (a) => JSON.stringify({ id: a.id, system_prompt: 'p' }),
     });
     const t = io({}, fetchFn);
@@ -133,7 +178,7 @@ describe('runCli', () => {
   it('export writes one file per profile when nothing collides', async () => {
     const target = await mkdtemp(join(tmpdir(), 'iii-export-test-'));
     const fetchFn = fakeFetch({
-      iii_list_agents: () => JSON.stringify([{ id: 'writer' }, { id: 'reviewer' }]),
+      iii_call: agentsList(JSON.stringify([{ id: 'writer' }, { id: 'reviewer' }])),
       iii_get_agent: (a) => JSON.stringify({ id: a.id, system_prompt: 'p' }),
     });
     const t = io({}, fetchFn);

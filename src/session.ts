@@ -30,7 +30,7 @@ export const GENERATED_NOTE =
 /** The line asking the agent to read a profile's skills, or '' when it has none. */
 function preloadLine(skills: string[]): string {
   return skills.length
-    ? `Before your first task, read each of its skills with \`iii_get_skill\`: ${skills.map((s) => `\`${s}\``).join(', ')}.`
+    ? `Before your first task, read each of its skills with \`iii_call\` (\`directory::skills::get\`, \`{ id }\`): ${skills.map((s) => `\`${s}\``).join(', ')}.`
     : '';
 }
 
@@ -75,6 +75,6 @@ export function sessionStartOutput(result: { profile: AgentProfile } | { error: 
   if (body.length < MAX_CONTEXT) return output(body);
   return output(
     // Bounded whatever the profile holds: no prompt, no skill list.
-    `${header} It is too long to include here: load it now with \`iii_get_agent\` (\`activate: true\`, id \`${id}\`), follow its \`system_prompt\`, and read each id in its \`skills\` with \`iii_get_skill\`.`,
+    `${header} It is too long to include here: load it now with \`iii_get_agent\` (\`activate: true\`, id \`${id}\`), follow its \`system_prompt\`, and read each id in its \`skills\` with \`iii_call\` (\`directory::skills::get\`, \`{ id }\`).`,
   );
 }

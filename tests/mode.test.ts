@@ -8,11 +8,14 @@ import { describe, expect, it } from 'vitest';
 import { profileCommand } from '../src/commands.js';
 import {
   APPROVED_TOOLS,
+  approveCallDecision,
+  callApprovalHookEntry,
   HEADLESS_TOOLS,
   headlessTools,
   approveHookEntry,
   III_AGENT,
   NEVER_APPROVED_TOOLS,
+  READ_ONLY_CALLS,
 } from '../src/mode.js';
 import { file, PLUGIN_FILES } from './_helpers/plugin-files.js';
 
@@ -96,8 +99,50 @@ describe('the read-only approval hook', () => {
 
   it('is in the standalone hooks file, beside the SessionStart sync', () => {
     const hooks = JSON.parse(file('hooks/hooks.json')).hooks;
-    expect(hooks.PreToolUse).toEqual([entry]);
+    expect(hooks.PreToolUse).toEqual([entry, callApprovalHookEntry()]);
     expect(hooks.SessionStart[0].hooks[1].command).toContain(' sync ');
+  });
+});
+
+describe('the read-only directory calls', () => {
+  const entry = callApprovalHookEntry();
+  const input = (function_id: unknown, tool_name = tool('iii_call')) => ({
+    tool_name,
+    tool_input: { function_id, payload: {} },
+  });
+
+  it('are exactly the four directory reads', () => {
+    expect([...READ_ONLY_CALLS].sort()).toEqual([
+      'directory::agents::get',
+      'directory::agents::list',
+      'directory::skills::get',
+      'directory::skills::list',
+    ]);
+  });
+
+  it('are checked by a hook on iii_call only', () => {
+    expect(matches(entry.matcher, tool('iii_call'))).toBe(true);
+    for (const name of ['iii_observe', 'iii_secret_store', 'iii_status', 'iii_call_x'])
+      expect(matches(entry.matcher, tool(name)), name).toBe(false);
+    expect(entry.hooks[0].command).toContain('approve-call');
+  });
+
+  it('allow only an exact read-only function id', () => {
+    for (const id of READ_ONLY_CALLS) {
+      expect(approveCallDecision(input(id))?.hookSpecificOutput.permissionDecision, id).toBe(
+        'allow',
+      );
+    }
+    for (const id of [
+      'secrets::set',
+      'directory::skills::update',
+      ' directory::skills::get',
+      3,
+      null,
+    ])
+      expect(approveCallDecision(input(id)), String(id)).toBeNull();
+    expect(approveCallDecision(input('directory::skills::get', tool('iii_observe')))).toBeNull();
+    expect(approveCallDecision(null)).toBeNull();
   });
 });
 
@@ -147,6 +192,17 @@ describe('the plugin uses mcp-server tool names', () => {
     expect(APPROVED_TOOLS).not.toContain('iii_events');
   });
 
+  it('never names the directory tools mcp-server no longer has', () => {
+    for (const f of PLUGIN_FILES.filter((x) => !x.path.startsWith('cli/'))) {
+      for (const gone of ['iii_list_agents', 'iii_list_skills', 'iii_get_skill'])
+        expect(f.content, `${f.path}: ${gone}`).not.toContain(gone);
+    }
+    for (const gone of ['iii_list_agents', 'iii_list_skills', 'iii_get_skill']) {
+      expect(APPROVED_TOOLS).not.toContain(gone);
+      expect(profileCommand({ id: 'writer' }).content).not.toContain(gone);
+    }
+  });
+
   it('pre-approves reading observations and statuses, never storing a secret', () => {
     expect(APPROVED_TOOLS).toEqual(
       expect.arrayContaining([
@@ -167,7 +223,9 @@ describe('the active profile', () => {
     expect(noArgs).toContain('iii_status');
     expect(noArgs).toContain('active_profile');
     expect(noArgs).toContain('default-mcp');
-    expect(noArgs.indexOf('active_profile')).toBeLessThan(noArgs.indexOf('iii_list_agents'));
+    expect(noArgs.indexOf('active_profile')).toBeLessThan(
+      noArgs.indexOf('directory::agents::list'),
+    );
     // mcp-server tracks it per MCP session: a renewed session starts at null
     // while the conversation may still follow a profile.
     expect(noArgs).toContain('renewed');

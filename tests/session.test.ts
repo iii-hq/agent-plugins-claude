@@ -17,7 +17,7 @@ describe('the session-start hook loads default-mcp', () => {
     );
     expect(text).toContain('`default-mcp`');
     expect(text).toContain('You are an iii agent.');
-    expect(text).toContain('iii_get_skill');
+    expect(text).toContain('directory::skills::get');
     expect(text).toContain('kanban');
     expect(text).toContain('/iii:profile');
   });
@@ -68,9 +68,11 @@ describe('the session-start hook loads default-mcp', () => {
     });
     const body = md.split('\n---\n\n')[1];
     expect(body).toContain('Use iii_call.');
-    expect(body).toContain('read each of its skills with `iii_get_skill`: `ide`, `fp`.');
+    expect(body).toContain(
+      'read each of its skills with `iii_call` (`directory::skills::get`, `{ id }`): `ide`, `fp`.',
+    );
     expect(agentFile({ id: 'default-mcp', system_prompt: 'Use iii_call.' })).not.toContain(
-      'iii_get_skill',
+      'directory::skills::get',
     );
   });
 
@@ -83,7 +85,7 @@ describe('the session-start hook loads default-mcp', () => {
     );
     expect(text.length).toBeLessThan(1000);
     expect(text).not.toContain(skills[0]);
-    expect(text).toContain('iii_get_skill');
+    expect(text).toContain('directory::skills::get');
   });
 
   it('says why when mcp-server does not answer', () => {
