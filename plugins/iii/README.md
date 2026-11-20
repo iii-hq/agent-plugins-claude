@@ -100,7 +100,10 @@ The tools are mcp-server's:
 | `iii_observers`, `iii_unobserve` | This session's observers; remove one. |
 | `iii_secret_store` | Store a credential in the vault without putting it in a payload. |
 | `iii_status` | The server, its access control, and the session's `active_profile`. |
-| `iii_list_agents`, `iii_get_agent`, `iii_list_skills`, `iii_get_skill` | Profiles and skills. |
+| `iii_get_agent` | Load an agent profile; `activate: true` makes it the session's active one. |
+
+Profiles are listed and skills read with `iii_call`: `directory::agents::list`,
+`directory::skills::list` and `directory::skills::get`.
 
 See mcp-server's README for each one in full.
 
@@ -123,10 +126,16 @@ whichever mode is active:
   to load `default-mcp`. An agent replaces Claude Code's system prompt, so
   the worker never starts sessions with it; it is there for people who want
   that.
-- **Read-only tools are pre-approved** by a PreToolUse hook: status,
-  profiles, skills, `iii_observations_poll`, `iii_observations_sse`,
-  `iii_observers`, `iii_unobserve`. Interactive sessions keep `iii_call`,
-  `iii_observe` and `iii_secret_store` with the permission mode. Headless
+- **Read-only tools are pre-approved** by a PreToolUse hook: `iii_status`,
+  `iii_get_agent`, `iii_observations_poll`, `iii_observations_sse`,
+  `iii_observers`, `iii_unobserve`.
+- **Read-only directory calls are pre-approved** by a second hook on
+  `iii_call`: it allows a call only when its `function_id` is exactly
+  `directory::agents::list`, `directory::agents::get`,
+  `directory::skills::list` or `directory::skills::get`, so listing profiles
+  and reading skills never prompt. Every other `iii_call`, and `iii_observe`
+  and `iii_secret_store`, stays with the permission mode in interactive
+  sessions. Headless
   worker turns, which no one is there to prompt, also allow `iii_call` and
   `iii_observe`: rbac-proxy bounds what they reach, which is narrower than
   the `Bash(iii *)` a turn already has. With the worker's `approval_gate` on,

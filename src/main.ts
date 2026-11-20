@@ -12,6 +12,11 @@ const writer = (stream: NodeJS.WriteStream) => (text: string) => {
 const code = await runCli(process.argv.slice(2), {
   env: process.env,
   fetchFn: fetch,
+  stdin: async () => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+    return Buffer.concat(chunks).toString('utf8');
+  },
   stdout: writer(process.stdout),
   stderr: writer(process.stderr),
 });

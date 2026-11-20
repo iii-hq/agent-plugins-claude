@@ -206,27 +206,37 @@ describe('McpDirectory', () => {
     { id: 'default', description: 'General' },
     { id: 'default-mcp', description: 'For MCP', hidden: true },
   ];
-  function directory() {
+  type Call = { function_id: string; payload: Record<string, unknown>; max_chars?: number };
+  /** mcp-server's iii_call: the function's result as compact JSON text. */
+  const directoryFunctions: Record<string, (p: Record<string, unknown>) => unknown> = {
+    'directory::agents::list': () => ({ agents }),
+    'directory::skills::list': (p) => ({ skills: [{ id: 'kanban', search: p.search }] }),
+    'directory::skills::get': (p) => ({ id: p.id, title: 'K', body: `# ${String(p.id)}` }),
+  };
+  function directory(functions = directoryFunctions) {
     const server = fakeServer({
-      iii_list_agents: (a) => ({
-        text: JSON.stringify(a.include_hidden ? agents : agents.filter((x) => !x.hidden)),
-      }),
+      iii_call: (a) => {
+        const c = a as unknown as Call;
+        return { text: JSON.stringify(functions[c.function_id]?.(c.payload ?? {}) ?? null) };
+      },
       iii_get_agent: (a) => ({ text: JSON.stringify({ id: a.id, system_prompt: 'Be.' }) }),
-      iii_list_skills: (a) => ({
-        text: JSON.stringify({ skills: [{ id: 'kanban', search: a.search }] }),
-      }),
-      iii_get_skill: (a) => ({ text: `# ${a.id}` }),
     });
-    return { server, dir: new McpDirectory(new McpClient('http://x/mcp', server.fetchFn)) };
+    const calls = () =>
+      server.sent
+        .map((s) => (s.body as { params?: { name: string; arguments: unknown } })?.params)
+        .filter((p): p is { name: string; arguments: Call } => p?.name === 'iii_call')
+        .map((p) => p.arguments);
+    return { server, calls, dir: new McpDirectory(new McpClient('http://x/mcp', server.fetchFn)) };
   }
 
-  it('lists profiles through iii_list_agents, hidden ones only when asked', async () => {
-    const { dir } = directory();
+  it('lists profiles with iii_call directory::agents::list, hidden ones only when asked', async () => {
+    const { dir, calls } = directory();
     expect((await dir.listAgents(true)).map((a) => a.id)).toEqual(['default', 'default-mcp']);
     expect((await dir.listAgents()).map((a) => a.id)).toEqual(['default']);
+    expect(calls()[0]).toMatchObject({ function_id: 'directory::agents::list', payload: {} });
   });
 
-  it('reads a profile without activating it', async () => {
+  it('reads a profile with iii_get_agent, without activating it', async () => {
     const { dir, server } = directory();
     expect(await dir.getAgent('writer')).toEqual({ id: 'writer', system_prompt: 'Be.' });
     const call = server.sent.find((s) => (s.body as { method?: string })?.method === 'tools/call');
@@ -236,18 +246,46 @@ describe('McpDirectory', () => {
     });
   });
 
-  it('lists skills (bare array or {skills}) and reads a skill body', async () => {
-    const { dir } = directory();
+  it('lists skills with directory::skills::list, passing search and prefix', async () => {
+    const { dir, calls } = directory();
     expect(await dir.listSkills({ search: 'kan' })).toEqual([{ id: 'kanban', search: 'kan' }]);
+    expect(calls()[0]).toMatchObject({
+      function_id: 'directory::skills::list',
+      payload: { search: 'kan' },
+    });
+  });
+
+  it('reads a skill body with directory::skills::get, asking for room for a long one', async () => {
+    const { dir, calls } = directory();
     expect(await dir.getSkill('kanban')).toEqual({ id: 'kanban', body: '# kanban' });
+    const call = calls()[0];
+    expect(call).toMatchObject({
+      function_id: 'directory::skills::get',
+      payload: { id: 'kanban' },
+    });
+    expect(call.max_chars).toBeGreaterThanOrEqual(1_000_000);
   });
 
   it('keeps a skill body that happens to be valid JSON as its text', async () => {
     for (const body of ['{"example":true}', 'null', '42']) {
-      const server = fakeServer({ iii_get_skill: () => ({ text: body }) });
-      const dir = new McpDirectory(new McpClient('http://x/mcp', server.fetchFn));
+      const { dir } = directory({ 'directory::skills::get': () => ({ id: 's', body }) });
       expect(await dir.getSkill('s')).toEqual({ id: 's', body });
     }
+  });
+
+  it('refuses a reply iii_call cut short instead of using part of it', async () => {
+    const server = fakeServer({
+      iii_call: () => ({
+        text: JSON.stringify({ result: '{"body":"# ka', truncated: true, total_chars: 2_000_001 }),
+      }),
+    });
+    const dir = new McpDirectory(new McpClient('http://x/mcp', server.fetchFn));
+    await expect(dir.getSkill('kanban')).rejects.toThrow(/cut|truncated/);
+  });
+
+  it('says when a skill has no body', async () => {
+    const { dir } = directory({ 'directory::skills::get': () => null });
+    await expect(dir.getSkill('missing')).rejects.toThrow(/missing/);
   });
 
   it('reports the server, its access control and the active profile', async () => {

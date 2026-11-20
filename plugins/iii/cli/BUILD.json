@@ -7,9 +7,10 @@
     "src/directory.ts",
     "src/main.ts",
     "src/mcp.ts",
+    "src/mode.ts",
     "src/session.ts",
     "src/troubleshoot.ts"
   ],
-  "inputs_sha256": "dae67f14cf8e53baba53708ea122d3714d714195067411858e545bce2a8bbc1b",
-  "output_sha256": "a765d1013b1c6caec0b42acc9aeb40168fdaa8c7c1f14409f8c0735fecd6547e"
+  "inputs_sha256": "65d7614377c45b03d0c4d0412b3f566ad55f29c1a00561f83bd1454c6bc8ea70",
+  "output_sha256": "4ae27957b01a17f8f350829d3bb156b30dd5337eb9984c17b5b778bad8f6b7b1"
 }

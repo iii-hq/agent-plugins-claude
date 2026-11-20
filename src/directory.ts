@@ -52,7 +52,7 @@ export function renderSubagent(profile: AgentProfile): string {
   const description = profile.description || profile.name || profile.id;
   const skills = profile.skills ?? [];
   const preload = skills.length
-    ? `\n\n## Preloaded skills\n\nBefore starting, read each of these with the \`iii_get_skill\` tool: ${skills
+    ? `\n\n## Preloaded skills\n\nBefore starting, read each of these with the \`iii_call\` tool (\`directory::skills::get\`, \`{ id }\`): ${skills
         .map((s) => `\`${s}\``)
         .join(', ')}.`
     : '';

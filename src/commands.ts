@@ -71,9 +71,7 @@ work around it with the \`iii\` CLI.
 
 export function profileCommand(row: AgentRow): PluginFile {
   const about = shorten(row.description || row.name || '');
-  const tools = ['iii_get_agent', 'iii_get_skill', 'iii_status']
-    .map((t) => TOOL_PREFIX + t)
-    .join(', ');
+  const tools = ['iii_get_agent', 'iii_status'].map((t) => TOOL_PREFIX + t).join(', ');
   return {
     path: `commands/${profileCommandName(row.id)}.md`,
     content: `---
@@ -91,7 +89,8 @@ answer from memory.
 
 1. Call \`iii_get_agent\` with id \`${row.id}\` and \`activate: true\`, so it
    becomes the session's active profile.
-2. Read every id in the profile's \`skills\` with \`iii_get_skill\`.
+2. Read every id in the profile's \`skills\` with \`iii_call\`
+   (\`directory::skills::get\`, payload \`{ "id": "<skill>" }\`).
 3. From now on, for the rest of this conversation, follow the profile's
    \`system_prompt\` as your instructions, on top of these session rules.
    Confirm in one line which profile is active.

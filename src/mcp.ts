@@ -206,12 +206,36 @@ export class McpClient {
   }
 }
 
-/** Profiles and skills, read through mcp-server's tools. */
+/** Room for a long skill body: iii_call cuts a reply at max_chars. */
+const SKILL_MAX_CHARS = 2_000_000;
+
+/** Profiles and skills: iii-directory's functions through `iii_call`, and a
+ *  profile through `iii_get_agent` (which can also activate it). */
 export class McpDirectory {
   constructor(readonly client: McpClient) {}
 
+  /** One directory function through iii_call; a reply cut at max_chars is an error. */
+  private async call(
+    functionId: string,
+    payload: Record<string, unknown>,
+    maxChars?: number,
+  ): Promise<unknown> {
+    const res = await this.client.callTool('iii_call', {
+      function_id: functionId,
+      payload,
+      ...(maxChars ? { max_chars: maxChars } : {}),
+    });
+    const cut = res as { truncated?: unknown; total_chars?: unknown } | null;
+    if (cut && typeof cut === 'object' && cut.truncated === true && 'total_chars' in cut) {
+      throw new Error(
+        `${functionId}: the reply was cut at ${maxChars ?? 'the default'} characters (it has ${String(cut.total_chars)})`,
+      );
+    }
+    return res;
+  }
+
   async listAgents(includeHidden = false): Promise<AgentRow[]> {
-    const res = await this.client.callTool('iii_list_agents', { include_hidden: true });
+    const res = await this.call('directory::agents::list', {});
     const agents = (
       Array.isArray(res) ? res : ((res as { agents?: AgentRow[] })?.agents ?? [])
     ) as AgentRow[];
@@ -223,7 +247,7 @@ export class McpDirectory {
   }
 
   async listSkills(filter: { search?: string; prefix?: string } = {}): Promise<SkillRow[]> {
-    const res = await this.client.callTool('iii_list_skills', filter);
+    const res = await this.call('directory::skills::list', { ...filter });
     return (
       Array.isArray(res) ? res : ((res as { skills?: SkillRow[] })?.skills ?? [])
     ) as SkillRow[];
@@ -231,7 +255,11 @@ export class McpDirectory {
 
   /** A skill's body is its markdown, kept as text even when it parses as JSON. */
   async getSkill(id: string): Promise<Skill> {
-    return { id, body: await this.client.callToolText('iii_get_skill', { id }) };
+    const res = (await this.call('directory::skills::get', { id }, SKILL_MAX_CHARS)) as {
+      body?: unknown;
+    } | null;
+    if (typeof res?.body !== 'string') throw new Error(`skill ${id}: missing, or it has no body`);
+    return { id, body: res.body };
   }
 
   async status(): Promise<Record<string, unknown>> {
