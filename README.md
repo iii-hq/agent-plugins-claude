@@ -28,6 +28,8 @@ In Claude Code:
 
 ```
 /plugin marketplace add iii-hq/agent-plugins-claude
+```
+```
 /plugin install iii@iii
 ```
 
