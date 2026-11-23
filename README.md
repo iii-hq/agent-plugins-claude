@@ -169,6 +169,39 @@ It serves MCP at the http worker's address plus `/mcp`: `http://127.0.0.1:3111/m
 default (`iii call http::status` shows the address). If yours differs, install the plugin
 with `--config mcp_url=...` (see [Install the plugin](#install-the-plugin)).
 
+## Why a plugin
+
+mcp-server already tells every MCP client how to work with iii: its instructions say
+to load the `default-mcp` profile with `iii_get_agent`, to use `iii_call` instead of the
+`iii` CLI, and to observe instead of polling. A plain MCP connection works without this
+plugin:
+
+```sh
+claude mcp add --transport http iii http://127.0.0.1:3111/mcp
+```
+
+The plugin adds what instructions cannot:
+
+- **The connection.** It registers the `iii` MCP server at the `mcp_url` option, so there
+  is nothing to add by hand.
+- **Fewer permission prompts.** Two PreToolUse hooks answer Claude Code's own
+  permission check for read-only calls: the read-only tools (`iii_status`,
+  `iii_get_agent`, the observation readers), and `iii_call` only when it lists profiles
+  or reads skills (`directory::agents::list`, `directory::agents::get`,
+  `directory::skills::list`, `directory::skills::get`). Claude Code's allow rules match a
+  whole tool, not its arguments, so allowing `iii_call` for those four functions alone
+  needs a hook. Every other call still goes through Claude Code's permission dialog and
+  your permission mode; the plugin adds no permission UI of its own.
+- **The current profile from the first message.** The SessionStart hook loads
+  `default-mcp` from the running engine into every session, so a profile changed on the
+  engine reaches the next session as it is now, not as a copy written into a prompt.
+- **Commands and an agent from your engine.** A background sync writes one
+  `/iii:<profile>` command for each profile on your engine, and the `iii` agent
+  (`claude --agent iii:iii`) built from `default-mcp`. `/iii:profile` and `/iii:skills`
+  browse and switch them.
+- **Errors that say how to fix them.** Every error from the plugin ends with a one-line
+  fix and a link to the matching [troubleshooting](#troubleshooting) entry.
+
 ## Troubleshooting
 
 Every error from the plugin ends with a one-line fix and a link to one of these entries.
@@ -281,36 +314,3 @@ step. After changing `src/` or `scripts/build.mjs`, run `pnpm run build` and com
 ## License
 
 Apache-2.0
-
-## Why a plugin
-
-mcp-server already tells every MCP client how to work with iii: its instructions say
-to load the `default-mcp` profile with `iii_get_agent`, to use `iii_call` instead of the
-`iii` CLI, and to observe instead of polling. A plain MCP connection works without this
-plugin:
-
-```sh
-claude mcp add --transport http iii http://127.0.0.1:3111/mcp
-```
-
-The plugin adds what instructions cannot:
-
-- **The connection.** It registers the `iii` MCP server at the `mcp_url` option, so there
-  is nothing to add by hand.
-- **Fewer permission prompts.** Two PreToolUse hooks answer Claude Code's own
-  permission check for read-only calls: the read-only tools (`iii_status`,
-  `iii_get_agent`, the observation readers), and `iii_call` only when it lists profiles
-  or reads skills (`directory::agents::list`, `directory::agents::get`,
-  `directory::skills::list`, `directory::skills::get`). Claude Code's allow rules match a
-  whole tool, not its arguments, so allowing `iii_call` for those four functions alone
-  needs a hook. Every other call still goes through Claude Code's permission dialog and
-  your permission mode; the plugin adds no permission UI of its own.
-- **The current profile from the first message.** The SessionStart hook loads
-  `default-mcp` from the running engine into every session, so a profile changed on the
-  engine reaches the next session as it is now, not as a copy written into a prompt.
-- **Commands and an agent from your engine.** A background sync writes one
-  `/iii:<profile>` command for each profile on your engine, and the `iii` agent
-  (`claude --agent iii:iii`) built from `default-mcp`. `/iii:profile` and `/iii:skills`
-  browse and switch them.
-- **Errors that say how to fix them.** Every error from the plugin ends with a one-line
-  fix and a link to the matching [troubleshooting](#troubleshooting) entry.
