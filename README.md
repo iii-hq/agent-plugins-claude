@@ -68,6 +68,107 @@ usually rbac-proxy is not configured yet (steps 2 and 3 of
 [mcp-server](https://github.com/iii-hq/workers/tree/main/mcp-server) and
 [rbac-proxy](https://github.com/iii-hq/workers/tree/main/rbac-proxy).
 
+## Security Considerations
+
+### Remote or shared engines
+
+`loopback_auth` trusts every process on this machine. When other people or machines can
+reach rbac-proxy, give it an auth function instead (`rbac.auth_function_id`, which takes
+precedence over `loopback_auth`): a function you register that checks each connection,
+for example a bearer token, and returns its grants. See
+[rbac-proxy](https://github.com/iii-hq/workers/tree/main/rbac-proxy) for the function's
+input and answer, and [mcp-server](https://github.com/iii-hq/workers/tree/main/mcp-server)
+for sending a token from mcp-server (`III_TOKEN`).
+
+## Set up an existing project (Advanced)
+
+A project created from the harness template already has all of this: see
+[Set up iii to serve it](#set-up-iii-to-serve-it). For any other project, set it up once,
+as follows.
+
+The plugin talks to the engine through the `mcp-server` worker, and mcp-server only
+starts behind `rbac-proxy`, which decides what agents may call. One-time setup, in your
+iii project directory (commands assume the `default` namespace and the engine on its
+default port, `ws://127.0.0.1:49134`).
+
+### 1. Add rbac-proxy and the http worker, on this machine only
+
+```sh
+iii call compose::add --json '{"workers": ["rbac-proxy", "secrets", {"worker": "http", "config_override": {"host": "127.0.0.1"}}]}'
+```
+
+- The http worker listens on every interface (`0.0.0.0`) by default, and mcp-server refuses
+  to serve an endpoint other machines can reach. `config_override` binds it to
+  `127.0.0.1` and keeps the rest of its settings; compose applies it every time http
+  starts. If the project already has http, this updates it and restarts it.
+- If your `worker-compose.yaml` already gives http a `config_override` (a custom port, say),
+  this command replaces it with just the host. In that case, add `host: 127.0.0.1` to
+  your existing `config_override` in `worker-compose.yaml` by hand instead, and add
+  `rbac-proxy` and `secrets` on their own.
+- `secrets` backs the `iii_secret_store` tool.
+
+### 2. Configure rbac-proxy
+
+rbac-proxy's settings live in the configuration worker, under `default-rbac-proxy`:
+
+```sh
+iii call configuration::set --json '{
+  "id": "default-rbac-proxy",
+  "value": {
+    "host": "127.0.0.1",
+    "port": 49200,
+    "engine_url": "ws://127.0.0.1:49134",
+    "rbac": {
+      "loopback_auth": {
+        "worker_names": ["mcp-server"],
+        "forbidden_functions": ["secrets::resolve"]
+      },
+      "expose_endpoints": ["match(\"/\")", "match(\"/ws/channels/*\")", "match(\"/otel\")"],
+      "expose_functions": ["match(\"*\")"]
+    }
+  }
+}'
+```
+
+- `loopback_auth` admits connections from this machine only, with no auth function or
+  token to set up: every local process can already reach the engine port directly. It
+  lets mcp-server keep its own name, and keeps `secrets::resolve` away from agents (it
+  would let them read every secret). For an engine others reach over the network, see
+  [Remote or shared engines](#remote-or-shared-engines).
+- `port` is where mcp-server connects (step 4); `engine_url` is your engine.
+- `expose_endpoints`: which engine endpoints rbac-proxy serves. It serves none until you
+  list them. `/` is required; `/otel` carries mcp-server's logs and traces; `/ws/channels/*`
+  is for functions that stream.
+- `expose_functions`: what agents may call. `match("*")` is everything; narrow it to limit
+  agents, for example `["match(\"orders::*\")", "match(\"secrets::set\")"]`.
+
+### 3. Restart rbac-proxy
+
+rbac-proxy reads the new settings live, but rule changes only apply to new connections.
+Restart it so every connection uses them:
+
+```sh
+iii call compose::restart container=rbac-proxy
+iii call rbac-proxy::status
+```
+
+`rbac-proxy::status` should show `auth: "loopback"` and the three endpoints.
+
+Do the same after any later change to its settings: `configuration::set`, then
+`compose::restart container=rbac-proxy` and `compose::restart container=mcp-server`.
+
+### 4. Add mcp-server
+
+Point it at rbac-proxy's port, not the engine's:
+
+```sh
+iii call compose::add --json '{"workers": [{"worker": "mcp-server", "environment": {"III_MCP_ENGINE_URL": "ws://127.0.0.1:49200"}}]}'
+```
+
+It serves MCP at the http worker's address plus `/mcp`: `http://127.0.0.1:3111/mcp` by
+default (`iii call http::status` shows the address). If yours differs, install the plugin
+with `--config mcp_url=...` (see [Install the plugin](#install-the-plugin)).
+
 ## Troubleshooting
 
 Every error from the plugin ends with a one-line fix and a link to one of these entries.
@@ -213,102 +314,3 @@ The plugin adds what instructions cannot:
   browse and switch them.
 - **Errors that say how to fix them.** Every error from the plugin ends with a one-line
   fix and a link to the matching [troubleshooting](#troubleshooting) entry.
-
-## Set up an existing project (Advanced)
-
-A project created from the harness template already has all of this: see
-[Set up iii to serve it](#set-up-iii-to-serve-it). For any other project, set it up once,
-as follows.
-
-The plugin talks to the engine through the `mcp-server` worker, and mcp-server only
-starts behind `rbac-proxy`, which decides what agents may call. One-time setup, in your
-iii project directory (commands assume the `default` namespace and the engine on its
-default port, `ws://127.0.0.1:49134`).
-
-### 1. Add rbac-proxy and the http worker, on this machine only
-
-```sh
-iii call compose::add --json '{"workers": ["rbac-proxy", "secrets", {"worker": "http", "config_override": {"host": "127.0.0.1"}}]}'
-```
-
-- The http worker listens on every interface (`0.0.0.0`) by default, and mcp-server refuses
-  to serve an endpoint other machines can reach. `config_override` binds it to
-  `127.0.0.1` and keeps the rest of its settings; compose applies it every time http
-  starts. If the project already has http, this updates it and restarts it.
-- If your `worker-compose.yaml` already gives http a `config_override` (a custom port, say),
-  this command replaces it with just the host. In that case, add `host: 127.0.0.1` to
-  your existing `config_override` in `worker-compose.yaml` by hand instead, and add
-  `rbac-proxy` and `secrets` on their own.
-- `secrets` backs the `iii_secret_store` tool.
-
-### 2. Configure rbac-proxy
-
-rbac-proxy's settings live in the configuration worker, under `default-rbac-proxy`:
-
-```sh
-iii call configuration::set --json '{
-  "id": "default-rbac-proxy",
-  "value": {
-    "host": "127.0.0.1",
-    "port": 49200,
-    "engine_url": "ws://127.0.0.1:49134",
-    "rbac": {
-      "loopback_auth": {
-        "worker_names": ["mcp-server"],
-        "forbidden_functions": ["secrets::resolve"]
-      },
-      "expose_endpoints": ["match(\"/\")", "match(\"/ws/channels/*\")", "match(\"/otel\")"],
-      "expose_functions": ["match(\"*\")"]
-    }
-  }
-}'
-```
-
-- `loopback_auth` admits connections from this machine only, with no auth function or
-  token to set up: every local process can already reach the engine port directly. It
-  lets mcp-server keep its own name, and keeps `secrets::resolve` away from agents (it
-  would let them read every secret). For an engine others reach over the network, see
-  [Remote or shared engines](#remote-or-shared-engines).
-- `port` is where mcp-server connects (step 4); `engine_url` is your engine.
-- `expose_endpoints`: which engine endpoints rbac-proxy serves. It serves none until you
-  list them. `/` is required; `/otel` carries mcp-server's logs and traces; `/ws/channels/*`
-  is for functions that stream.
-- `expose_functions`: what agents may call. `match("*")` is everything; narrow it to limit
-  agents, for example `["match(\"orders::*\")", "match(\"secrets::set\")"]`.
-
-### 3. Restart rbac-proxy
-
-rbac-proxy reads the new settings live, but rule changes only apply to new connections.
-Restart it so every connection uses them:
-
-```sh
-iii call compose::restart container=rbac-proxy
-iii call rbac-proxy::status
-```
-
-`rbac-proxy::status` should show `auth: "loopback"` and the three endpoints.
-
-Do the same after any later change to its settings: `configuration::set`, then
-`compose::restart container=rbac-proxy` and `compose::restart container=mcp-server`.
-
-### 4. Add mcp-server
-
-Point it at rbac-proxy's port, not the engine's:
-
-```sh
-iii call compose::add --json '{"workers": [{"worker": "mcp-server", "environment": {"III_MCP_ENGINE_URL": "ws://127.0.0.1:49200"}}]}'
-```
-
-It serves MCP at the http worker's address plus `/mcp`: `http://127.0.0.1:3111/mcp` by
-default (`iii call http::status` shows the address). If yours differs, install the plugin
-with `--config mcp_url=...` (see [Install the plugin](#install-the-plugin)).
-
-### Remote or shared engines
-
-`loopback_auth` trusts every process on this machine. When other people or machines can
-reach rbac-proxy, give it an auth function instead (`rbac.auth_function_id`, which takes
-precedence over `loopback_auth`): a function you register that checks each connection,
-for example a bearer token, and returns its grants. See
-[rbac-proxy](https://github.com/iii-hq/workers/tree/main/rbac-proxy) for the function's
-input and answer, and [mcp-server](https://github.com/iii-hq/workers/tree/main/mcp-server)
-for sending a token from mcp-server (`III_TOKEN`).
