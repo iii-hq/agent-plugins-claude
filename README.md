@@ -194,6 +194,11 @@ The plugin adds what instructions cannot:
   whole tool, not its arguments, so allowing `iii_call` for those four functions alone
   needs a hook. Every other call still goes through Claude Code's permission dialog and
   your permission mode; the plugin adds no permission UI of its own.
+- **Activity reports.** Hooks on each prompt, tool call, stop and session start or end
+  hand the event to the claude-code worker (`claude::terminal::activity`) through the
+  `iii` CLI (`III_CLI`, else `iii` on your PATH), so the console shows the session's
+  turns. They print nothing and never fail the session: with no CLI or no engine
+  running, the report is dropped within a few seconds.
 - **The current profile from the first message.** The SessionStart hook loads
   `default-mcp` from the running engine into every session, so a profile changed on the
   engine reaches the next session as it is now, not as a copy written into a prompt.

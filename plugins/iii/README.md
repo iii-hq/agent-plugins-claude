@@ -18,9 +18,10 @@ It works in two places:
   `III_PLUGIN_MCP_URL`). When the engine runs no mcp-server, it installs the
   plugin without its MCP server and without default-mcp, so the session works
   through the `iii` CLI as before, and says so. It also adds what only it
-  can: hooks that report every turn onto
-  `claude::on-agent-event`, the `iii-runtime` skill (only without mcp-server), and the `/iii:<profile>`
-  commands, generated fresh for each session.
+  can: the `iii-runtime` skill (only without mcp-server), and the `/iii:<profile>`
+  commands, generated fresh for each session. The hooks that report every
+  turn onto `claude::on-agent-event` are part of the plugin itself (see
+  [Activity reports](#activity-reports)).
 - **In a standalone `claude`** on your own machine, from the
   [iii marketplace](https://github.com/iii-hq/agent-plugins-claude):
 
@@ -33,7 +34,7 @@ It works in two places:
 
 Both need `mcp-server` running on the engine, behind rbac-proxy: see its
 README. Without it the `iii` tools are missing, and every `/iii:*` command
-says so instead of guessing. The SessionStart hooks need Node 22+.
+says so instead of guessing. The plugin's hooks need Node 22+.
 
 ## Connecting to mcp-server
 
@@ -145,6 +146,28 @@ Every `/iii:*` command carries the same rule: `iii_call` instead of the `iii`
 CLI, `iii_observe` instead of polling, and `agent_call` / `harness::observe`
 in harness-written profiles mean `iii_call` / `iii_observe` here.
 
+## Activity reports
+
+The plugin reports what a session does to the engine, so the console can
+show a Claude Code session's turns like any other agent's. On six Claude
+Code events (session start and end, each prompt, each tool call before and
+after it runs, and when Claude stops) a hook runs
+`node "${CLAUDE_PLUGIN_ROOT}/cli/index.mjs" activity`. It passes the event
+Claude Code gave the hook, unchanged, to the claude-code worker's
+`claude::terminal::activity` function, through the `iii` CLI: the one named
+by the `III_CLI` environment variable, or `iii` on your PATH. A very large
+tool input or result is cut to a short preview first.
+
+A report never gets in the session's way. The hook prints nothing, always
+exits successfully, and gives up after about two and a half seconds. When
+there is no `iii` CLI, no engine running, or no claude-code worker on it,
+the report is simply dropped: nothing is queued or retried. So in a
+standalone `claude` the reports only reach anything while an engine with
+the claude-code worker is running; the worker shows that session on
+`claude::on-agent-event` under a name of its own (`claude-<id>-<time>`),
+the same way it shows the terminals it starts. These hooks run alongside
+the SessionStart and approval hooks above and never change their answers.
+
 ## CLI
 
 ```sh
@@ -153,6 +176,7 @@ node plugins/iii/cli/index.mjs sync     # regenerate /iii:<profile> commands and
 node plugins/iii/cli/index.mjs export   # profiles as native ~/.claude/agents/iii-<id>.md
 node plugins/iii/cli/index.mjs export --skills --target ./.claude --include-hidden
 node plugins/iii/cli/index.mjs session-start  # what the default-mcp hook adds
+echo '{"hook_event_name":"Stop","session_id":"test"}' | node plugins/iii/cli/index.mjs activity  # one activity report
 ```
 
 Each takes `--url <mcp-url>`. `export` is a snapshot for people who want the

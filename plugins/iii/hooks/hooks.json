@@ -13,6 +13,15 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/cli/index.mjs\" sync --quiet >/dev/null 2>&1 &"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/cli/index.mjs\" activity",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -31,6 +40,61 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/cli/index.mjs\" approve-call"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/cli/index.mjs\" activity",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/cli/index.mjs\" activity",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/cli/index.mjs\" activity",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/cli/index.mjs\" activity",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/cli/index.mjs\" activity",
+            "timeout": 5
           }
         ]
       }
