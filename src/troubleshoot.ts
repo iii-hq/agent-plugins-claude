@@ -10,11 +10,11 @@ export const TROUBLESHOOTING_URL = 'https://github.com/iii-hq/agent-plugins-clau
 export const TROUBLESHOOTING = {
   unreachable: {
     anchor: 'mcp-server-is-not-reachable',
-    fix: 'Start the iii project (iii compose --up) and check that mcp-server runs, or point the plugin at it with mcp_url.',
+    fix: 'Start the iii project (iii compose --up) and check that mcp-server runs, or point the plugin at it with the III_MCP_URL environment variable.',
   },
   notServing: {
     anchor: 'mcp-server-does-not-answer-at-the-address',
-    fix: 'Something answers there, but not mcp-server: check mcp_url, and read the mcp-server log for why it is not serving.',
+    fix: 'Something answers there, but not mcp-server: check III_MCP_URL, and read the mcp-server log for why it is not serving.',
   },
   origin: {
     anchor: 'mcp-server-refused-the-origin',
@@ -26,7 +26,7 @@ export const TROUBLESHOOTING = {
   },
   websocket: {
     anchor: 'the-address-is-an-engine-websocket-address',
-    fix: "Set mcp_url to mcp-server's HTTP address (http://127.0.0.1:3111/mcp by default), not the engine's ws:// address.",
+    fix: "Set III_MCP_URL to mcp-server's HTTP address (http://127.0.0.1:3111/mcp by default), not the engine's ws:// address.",
   },
   forbidden: {
     anchor: 'a-call-is-forbidden',
@@ -34,7 +34,7 @@ export const TROUBLESHOOTING = {
   },
   toolsMissing: {
     anchor: 'the-iii-tools-are-missing-in-claude-code',
-    fix: 'Run /mcp in Claude Code: if the iii server is missing or failed, check the plugin is installed and enabled, and that mcp-server answers at mcp_url.',
+    fix: 'Run /mcp in Claude Code: if the iii server is missing or failed, check the plugin is installed and enabled, and that mcp-server answers at III_MCP_URL (default http://127.0.0.1:3111/mcp).',
   },
   profile: {
     anchor: 'the-default-mcp-profile-did-not-load',

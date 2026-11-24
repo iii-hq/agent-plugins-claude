@@ -28,8 +28,8 @@
  *       CLI (`III_CLI`, else `iii` on PATH). Best effort: silent, exits 0,
  *       gives up within a few seconds. See `./activity.ts`.
  *
- * The mcp-server URL: --url, then III_PLUGIN_MCP_URL, then the plugin's
- * `mcp_url` option, then http://127.0.0.1:3111/mcp.
+ * The mcp-server URL: --url, then III_MCP_URL (the variable the plugin's
+ * `.mcp.json` reads), then III_PLUGIN_MCP_URL, then http://127.0.0.1:3111/mcp.
  */
 
 import { reportActivity, type Runner } from './activity.js';

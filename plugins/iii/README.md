@@ -38,10 +38,17 @@ says so instead of guessing. The plugin's hooks need Node 22+.
 
 ## Connecting to mcp-server
 
-The plugin's `mcp_url` option (Claude Code asks for it when you enable the
-plugin) is where mcp-server answers: the http worker's address plus its
-`api_path`. The default is `http://127.0.0.1:3111/mcp`. The plugin's CLI
-(below) reads `--url`, then `III_PLUGIN_MCP_URL`, then that option.
+Installing the plugin asks you nothing. It looks for mcp-server at
+`http://127.0.0.1:3111/mcp`, which is the engine's http worker on its usual
+port plus `/mcp`. If your engine's http worker runs on another address, set
+the `III_MCP_URL` environment variable to that address plus `/mcp` before
+starting `claude`, for example
+`III_MCP_URL=http://127.0.0.1:3211/mcp claude`. Leave it unset, not empty, to
+use the default: Claude Code treats an empty value as the address. Inside
+the claude-code worker you do not need to do anything, because the worker
+sets it for you. The plugin's CLI (below) uses the same address. It reads
+`--url` first, then `III_MCP_URL`, then `III_PLUGIN_MCP_URL`, which older
+workers set.
 
 Ask the agent for `iii_status`: it reports the server, its `access_control`
 (`rbac-proxy` and the rules in force) and the session's `active_profile`.

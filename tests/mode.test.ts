@@ -178,7 +178,7 @@ describe('plugin prompts point at iii_call and iii_observe', () => {
       'iii_observers',
       'iii:iii',
       'mcp-server',
-      'mcp_url',
+      'III_MCP_URL',
       'active_profile',
     ]) {
       expect(md).toContain(t);
@@ -254,7 +254,7 @@ describe('the active profile', () => {
       profileCommand({ id: 'writer' }).content,
     ]) {
       expect(md).toContain('mcp-server');
-      expect(md).toContain('mcp_url');
+      expect(md).toContain('III_MCP_URL');
     }
   });
 });

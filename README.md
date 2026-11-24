@@ -40,11 +40,15 @@ claude plugin marketplace add iii-hq/agent-plugins-claude
 claude plugin install iii@iii
 ```
 
-When mcp-server is not at the default `http://127.0.0.1:3111/mcp`, pass its address:
+Installing asks you nothing. The plugin looks for mcp-server at `http://127.0.0.1:3111/mcp`.
+If your engine's http worker is not on port 3111, set `III_MCP_URL` to its address plus
+`/mcp` when you start Claude Code (leave it unset, not empty, to use the default):
 
 ```sh
-claude plugin install iii@iii --config mcp_url=http://127.0.0.1:3211/mcp
+III_MCP_URL=http://127.0.0.1:3211/mcp claude
 ```
+
+Inside the claude-code worker, the worker sets it for you.
 
 The plugin needs Node 22+ for its SessionStart hooks, and the engine's `mcp-server` worker
 behind rbac-proxy: [set that up first](#set-up-iii-to-serve-it). The `claude-code` worker already carries this plugin; you only
@@ -168,8 +172,8 @@ iii call compose::add --json '{"workers": [{"worker": "mcp-server", "environment
 ```
 
 It serves MCP at the http worker's address plus `/mcp`: `http://127.0.0.1:3111/mcp` by
-default (`iii call http::status` shows the address). If yours differs, install the plugin
-with `--config mcp_url=...` (see [Install the plugin](#install-the-plugin)).
+default (`iii call http::status` shows the address). If yours differs, start Claude Code
+with `III_MCP_URL` set to it (see [Install the plugin](#install-the-plugin)).
 
 ## Why a plugin
 
@@ -184,8 +188,8 @@ claude mcp add --transport http iii http://127.0.0.1:3111/mcp
 
 The plugin adds what instructions cannot:
 
-- **The connection.** It registers the `iii` MCP server at the `mcp_url` option, so there
-  is nothing to add by hand.
+- **The connection.** It registers the `iii` MCP server at `III_MCP_URL`, or
+  `http://127.0.0.1:3111/mcp` when that is unset, so there is nothing to add by hand.
 - **Fewer permission prompts.** Two PreToolUse hooks answer Claude Code's own
   permission check for read-only calls: the read-only tools (`iii_status`,
   `iii_get_agent`, the observation readers), and `iii_call` only when it lists profiles
@@ -218,21 +222,20 @@ lists each worker's state. `iii call compose::logs container=mcp-server` (or
 
 ### mcp-server is not reachable
 
-Nothing answers at the plugin's `mcp_url` (default `http://127.0.0.1:3111/mcp`).
+Nothing answers at the plugin's address (`III_MCP_URL`, default `http://127.0.0.1:3111/mcp`).
 
 1. Start the project: `iii compose --up` in the project directory.
 2. Check that `http`, `rbac-proxy` and `mcp-server` are `ready` in `iii call compose::status`.
    If mcp-server is missing, follow [Set up iii to serve it](#set-up-iii-to-serve-it).
 3. If mcp-server runs on another address, `iii call http::status` shows the http worker's
-   address; install the plugin with that address plus `/mcp`
-   (`claude plugin install iii@iii --config mcp_url=...`, see
-   [Install the plugin](#install-the-plugin)).
+   address; start Claude Code with `III_MCP_URL` set to that address plus `/mcp`
+   (see [Install the plugin](#install-the-plugin)).
 
 ### mcp-server does not answer at the address
 
 The address answers (HTTP 404, 502, ...), but not as mcp-server.
 
-1. Check `mcp_url` ends with mcp-server's `api_path` (`/mcp` by default).
+1. Check `III_MCP_URL`, if you set it, ends with mcp-server's `api_path` (`/mcp` by default).
 2. Read the mcp-server log. It withdraws `/mcp` and says why when:
    - it is not behind rbac-proxy, or rbac-proxy refuses it: set up steps 2 and 3 of
      [Set up an existing project (Advanced)](#set-up-an-existing-project-advanced);
@@ -261,7 +264,7 @@ collect its interface, not to serve: remove `interface_only` and restart it.
 
 ### The address is an engine WebSocket address
 
-`mcp_url` (or `III_PLUGIN_MCP_URL`, or `--url`) is a `ws://` address: the engine's, not
+`III_MCP_URL` (or `III_PLUGIN_MCP_URL`, or `--url`) is a `ws://` address: the engine's, not
 mcp-server's. Use mcp-server's HTTP address, `http://127.0.0.1:3111/mcp` by default (see
 [Install the plugin](#install-the-plugin)).
 

@@ -73,10 +73,10 @@ describe('resolveMcpUrl', () => {
     expect(resolveMcpUrl([], {})).toEqual({ url: DEFAULT_MCP_URL, source: 'default' });
   });
 
-  it('takes --url, then III_PLUGIN_MCP_URL, then the plugin option', () => {
+  it('takes --url, then III_MCP_URL (what the plugin .mcp.json reads), then III_PLUGIN_MCP_URL', () => {
     const env = {
-      III_PLUGIN_MCP_URL: 'http://127.0.0.1:3211/mcp',
-      CLAUDE_PLUGIN_OPTION_MCP_URL: 'http://127.0.0.1:3311/mcp',
+      III_MCP_URL: 'http://127.0.0.1:3211/mcp',
+      III_PLUGIN_MCP_URL: 'http://127.0.0.1:3311/mcp',
     };
     expect(resolveMcpUrl(['--url', 'http://h:1/mcp'], env)).toEqual({
       url: 'http://h:1/mcp',
@@ -84,21 +84,20 @@ describe('resolveMcpUrl', () => {
     });
     expect(resolveMcpUrl([], env)).toEqual({
       url: 'http://127.0.0.1:3211/mcp',
-      source: 'III_PLUGIN_MCP_URL',
+      source: 'III_MCP_URL',
     });
-    expect(
-      resolveMcpUrl([], { CLAUDE_PLUGIN_OPTION_MCP_URL: env.CLAUDE_PLUGIN_OPTION_MCP_URL }),
-    ).toEqual({
+    expect(resolveMcpUrl([], { III_PLUGIN_MCP_URL: env.III_PLUGIN_MCP_URL })).toEqual({
       url: 'http://127.0.0.1:3311/mcp',
-      source: 'plugin option mcp_url',
+      source: 'III_PLUGIN_MCP_URL',
     });
   });
 
-  it('ignores empty values and an unexpanded user_config placeholder', () => {
+  it('ignores empty values and the retired plugin option', () => {
     expect(
       resolveMcpUrl([], {
+        III_MCP_URL: '',
         III_PLUGIN_MCP_URL: ' ',
-        CLAUDE_PLUGIN_OPTION_MCP_URL: '${user_config.mcp_url}',
+        CLAUDE_PLUGIN_OPTION_MCP_URL: 'http://127.0.0.1:3411/mcp',
       }),
     ).toEqual({ url: DEFAULT_MCP_URL, source: 'default' });
   });
@@ -177,7 +176,7 @@ describe('McpClient', () => {
     const message = (err as Error).message;
     expect(message).toContain('mcp-server is not reachable at http://127.0.0.1:3111/mcp');
     expect(message).toContain('ECONNREFUSED');
-    expect(message).toContain('mcp_url');
+    expect(message).toContain('III_MCP_URL');
     // The fix ends with its troubleshooting entry.
     expect(message).toContain('agent-plugins-claude#mcp-server-is-not-reachable');
   });

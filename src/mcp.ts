@@ -17,7 +17,7 @@ export const DEFAULT_MCP_URL = 'http://127.0.0.1:3111/mcp';
 const PROTOCOL = '2025-06-18';
 const TIMEOUT_MS = 15_000;
 
-export type McpUrlSource = '--url' | 'III_PLUGIN_MCP_URL' | 'plugin option mcp_url' | 'default';
+export type McpUrlSource = '--url' | 'III_MCP_URL' | 'III_PLUGIN_MCP_URL' | 'default';
 
 /** `3211`, `:3211`, `host:3211` or a URL without a path become `http://…/mcp`. */
 export function normalizeMcpUrl(raw: string): string {
@@ -37,11 +37,15 @@ export function normalizeMcpUrl(raw: string): string {
 
 function given(value: string | undefined): string {
   const v = value?.trim() ?? '';
-  // Claude Code leaves `${user_config.x}` as written when the option is unset.
+  // A `${...}` placeholder nothing expanded is not an address.
   return v.includes('${') ? '' : v;
 }
 
-/** Where mcp-server is: `--url`, `III_PLUGIN_MCP_URL`, the plugin option, then the default. */
+/**
+ * Where mcp-server is: `--url`, then `III_MCP_URL` (what the plugin's
+ * `.mcp.json` reads, so the CLI and Claude Code agree), then
+ * `III_PLUGIN_MCP_URL` (older workers set it), then the default.
+ */
 export function resolveMcpUrl(
   argv: string[],
   env: NodeJS.ProcessEnv = process.env,
@@ -49,8 +53,8 @@ export function resolveMcpUrl(
   const i = argv.indexOf('--url');
   const candidates: [string, McpUrlSource][] = [
     [i >= 0 ? (argv[i + 1] ?? '') : '', '--url'],
+    [given(env.III_MCP_URL), 'III_MCP_URL'],
     [given(env.III_PLUGIN_MCP_URL), 'III_PLUGIN_MCP_URL'],
-    [given(env.CLAUDE_PLUGIN_OPTION_MCP_URL), 'plugin option mcp_url'],
   ];
   for (const [value, source] of candidates) {
     if (value.trim()) return { url: normalizeMcpUrl(value), source };
