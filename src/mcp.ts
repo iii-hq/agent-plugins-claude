@@ -164,7 +164,7 @@ export class McpClient {
       await this.request('initialize', {
         protocolVersion: PROTOCOL,
         capabilities: {},
-        clientInfo: { name: 'iii-plugin', version: '0.3.0' },
+        clientInfo: { name: 'iii-plugin', version: '0.4.0' },
       });
       await this.post({ jsonrpc: '2.0', method: 'notifications/initialized' });
     })().catch((err) => {
