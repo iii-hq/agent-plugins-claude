@@ -32,7 +32,7 @@ equally, list them and stop.
 
 If the `iii` MCP tools are missing, cannot connect, or a call fails, stop and
 tell the user what failed, quoting the error. (The iii plugin reaches the
-engine through the `mcp-server` worker at its `mcp_url` option, default
+engine through the `mcp-server` worker at `III_MCP_URL`, default
 `http://127.0.0.1:3111/mcp`.) An error from the iii plugin
 ends with its fix and a link: pass both on. Otherwise point to the matching
 entry in the troubleshooting guide,

@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { activityHookEntry } from '../src/activity.js';
 import { profileCommand } from '../src/commands.js';
 import {
   APPROVED_TOOLS,
@@ -99,7 +100,9 @@ describe('the read-only approval hook', () => {
 
   it('is in the standalone hooks file, beside the SessionStart sync', () => {
     const hooks = JSON.parse(file('hooks/hooks.json')).hooks;
-    expect(hooks.PreToolUse).toEqual([entry, callApprovalHookEntry()]);
+    // The approvals first, then the activity report (tests/activity.test.ts).
+    expect(hooks.PreToolUse.slice(0, 2)).toEqual([entry, callApprovalHookEntry()]);
+    expect(hooks.PreToolUse.slice(2)).toEqual([activityHookEntry('matcher')]);
     expect(hooks.SessionStart[0].hooks[1].command).toContain(' sync ');
   });
 });
@@ -175,7 +178,7 @@ describe('plugin prompts point at iii_call and iii_observe', () => {
       'iii_observers',
       'iii:iii',
       'mcp-server',
-      'mcp_url',
+      'III_MCP_URL',
       'active_profile',
     ]) {
       expect(md).toContain(t);
@@ -251,7 +254,7 @@ describe('the active profile', () => {
       profileCommand({ id: 'writer' }).content,
     ]) {
       expect(md).toContain('mcp-server');
-      expect(md).toContain('mcp_url');
+      expect(md).toContain('III_MCP_URL');
     }
   });
 });

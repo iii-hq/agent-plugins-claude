@@ -8,6 +8,7 @@ import {
   writeProfileCommands,
 } from '../src/commands.js';
 import { renderSkill, renderSubagent, skillDirectories, slug } from '../src/directory.js';
+import { DEFAULT_MCP_URL } from '../src/mcp.js';
 import { file, PLUGIN_FILES, PLUGIN_ROOT, ROOT } from './_helpers/plugin-files.js';
 
 describe('renderers', () => {
@@ -160,17 +161,20 @@ describe('review fixes', () => {
 });
 
 describe('the plugin talks to mcp-server', () => {
-  it('declares mcp-server over HTTP at the mcp_url option', () => {
+  it('declares mcp-server over HTTP at III_MCP_URL, defaulting to the http worker on this machine', () => {
     expect(JSON.parse(file('.mcp.json'))).toEqual({
-      mcpServers: { iii: { type: 'http', url: '${user_config.mcp_url}' } },
+      mcpServers: { iii: { type: 'http', url: `\${III_MCP_URL:-${DEFAULT_MCP_URL}}` } },
     });
+    expect(DEFAULT_MCP_URL).toBe('http://127.0.0.1:3111/mcp');
+  });
+
+  it('asks nothing at install: no userConfig, and no file still reads the old mcp_url option', () => {
     const manifest = JSON.parse(file('.claude-plugin/plugin.json'));
-    expect(manifest.userConfig.engine_url).toBeUndefined();
-    expect(manifest.userConfig.mcp_url).toMatchObject({
-      type: 'string',
-      default: 'http://127.0.0.1:3111/mcp',
-    });
-    expect(manifest.userConfig.mcp_url.description).toContain('mcp-server');
+    expect(manifest.userConfig).toBeUndefined();
+    for (const f of PLUGIN_FILES) {
+      expect(f.content, f.path).not.toContain('user_config');
+      expect(f.content, f.path).not.toMatch(/\bmcp_url\b/);
+    }
   });
 
   it('ships a small CLI without iii-sdk: every engine call goes through mcp-server', () => {

@@ -22,11 +22,17 @@
  *       A SessionStart hook: print the `default-mcp` profile as the hook's
  *       additionalContext, so every session starts on it.
  *
+ *   index.mjs activity
+ *       A hook on every lifecycle event: hand the hook input to the
+ *       claude-code worker's `claude::terminal::activity` through the `iii`
+ *       CLI (`III_CLI`, else `iii` on PATH). Best effort: silent, exits 0,
+ *       gives up within a few seconds. See `./activity.ts`.
  *
- * The mcp-server URL: --url, then III_PLUGIN_MCP_URL, then the plugin's
- * `mcp_url` option, then http://127.0.0.1:3111/mcp.
+ * The mcp-server URL: --url, then III_MCP_URL (the variable the plugin's
+ * `.mcp.json` reads), then III_PLUGIN_MCP_URL, then http://127.0.0.1:3111/mcp.
  */
 
+import { reportActivity, type Runner } from './activity.js';
 import { approveCallDecision } from './mode.js';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -123,8 +129,10 @@ async function exportNative(dir: McpDirectory, argv: string[], io: CliIo): Promi
 export type CliIo = {
   env: NodeJS.ProcessEnv;
   fetchFn: typeof fetch;
-  /** The hook input, read only by `approve-call`. */
+  /** The hook input, read only by `approve-call` and `activity`. */
   stdin?: () => Promise<string>;
+  /** Runs the `iii` CLI for `activity`; defaults to a real, silent child process. */
+  run?: Runner;
   stdout: (text: string) => void;
   stderr: (text: string) => void;
 };
@@ -152,6 +160,11 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
       if (decision) io.stdout(`${JSON.stringify(decision)}\n`);
       return 0;
     }
+    if (command === 'activity') {
+      // Every lifecycle hook: report, never fail, never print.
+      await reportActivity(io.stdin, io.env, io.run).catch(() => undefined);
+      return 0;
+    }
     if (command === 'session-start') {
       // Never fail the hook: a session starts either way, told why. A bad
       // address is one more reason, reported the same way.
@@ -177,7 +190,7 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
       );
     } else {
       io.stderr(
-        `unknown command: ${command} (expected sync, export, status, session-start or approve-call)\n`,
+        `unknown command: ${command} (expected sync, export, status, session-start, approve-call or activity)\n`,
       );
       return 2;
     }

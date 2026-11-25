@@ -103,6 +103,7 @@ describe('the session-start hook loads default-mcp', () => {
     );
     expect(commands[0]).toBe('node "${CLAUDE_PLUGIN_ROOT}/cli/index.mjs" session-start');
     expect(commands[1]).toContain('/cli/index.mjs" sync');
-    expect(commands).toHaveLength(2);
+    // Then only the activity report (tests/activity.test.ts).
+    expect(commands.slice(2)).toEqual(['node "${CLAUDE_PLUGIN_ROOT}/cli/index.mjs" activity']);
   });
 });
